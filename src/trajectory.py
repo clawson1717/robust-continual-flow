@@ -2,6 +2,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+from src.uncertainty import UncertaintyEstimator
 
 class TrajectoryLogger:
     """
@@ -13,23 +14,36 @@ class TrajectoryLogger:
         self.edges = []
         self.current_node_id = None
 
-    def add_node(self, observation: Any, metadata: Optional[Dict[str, Any]] = None) -> str:
+    def add_node(self, 
+                 observation: Any, 
+                 metadata: Optional[Dict[str, Any]] = None,
+                 votes: Optional[List[Any]] = None,
+                 probabilities: Optional[List[float]] = None) -> str:
         """
         Adds a node to the trajectory graph.
         
         Args:
             observation: The state or observation at this point.
             metadata: Additional info (uncertainty, model name, etc.)
+            votes: Optional list of votes to calculate uncertainty.
+            probabilities: Optional list of probabilities to calculate uncertainty.
             
         Returns:
             The unique ID of the added node.
         """
         node_id = str(uuid.uuid4())
+        meta = metadata or {}
+        
+        if votes is not None:
+            meta["uncertainty"] = UncertaintyEstimator.from_votes(votes)
+        elif probabilities is not None:
+            meta["uncertainty"] = UncertaintyEstimator.from_probs(probabilities)
+            
         self.nodes[node_id] = {
             "id": node_id,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "observation": observation,
-            "metadata": metadata or {}
+            "metadata": meta
         }
         return node_id
 
